@@ -1,103 +1,83 @@
-// 서비스 워커 등록 - 동적 버전 관리
-const CACHE_NAME = `zavis-v${Date.now()}`; // 동적 버전
+// ZAVIS PWA v3.0 - 완전 새 버전 (인증 제거)
+const CACHE_NAME = 'zavis-new-v3.0';
 const urlsToCache = [
   './',
   './index.html',
   './mp1.png',
-  './manifest.json',
-  './sw.js'
+  './manifest.json'
 ];
 
-// 설치 이벤트
+// 설치 이벤트 - 기존 캐시 모두 삭제하고 새로 시작
 self.addEventListener('install', event => {
-  console.log('Service Worker: Installing new version with cache:', CACHE_NAME);
+  console.log('🚀 ZAVIS PWA v3.0 설치 중...');
+  
   event.waitUntil(
-    // 먼저 모든 기존 캐시 삭제
+    // 1. 모든 기존 캐시 완전 삭제
     caches.keys().then(cacheNames => {
+      console.log('🗑️ 기존 캐시 모두 삭제:', cacheNames);
       return Promise.all(
-        cacheNames.map(cacheName => {
-          console.log('Service Worker: Deleting old cache during install:', cacheName);
-          return caches.delete(cacheName);
-        })
+        cacheNames.map(cacheName => caches.delete(cacheName))
       );
     }).then(() => {
-      // 새 캐시 생성
+      // 2. 새 캐시 생성
+      console.log('📦 새 캐시 생성:', CACHE_NAME);
       return caches.open(CACHE_NAME);
     }).then(cache => {
-      console.log('Service Worker: Caching files in:', CACHE_NAME);
+      console.log('💾 파일 캐시 중...');
       return cache.addAll(urlsToCache);
     }).then(() => {
-      // 즉시 활성화하여 기존 SW를 대체
-      console.log('Service Worker: Skipping waiting');
-      return self.skipWaiting();
+      console.log('✅ ZAVIS PWA v3.0 설치 완료!');
+      return self.skipWaiting(); // 즉시 활성화
     })
   );
 });
 
-// 활성화 이벤트 - 이전 캐시 삭제
+// 활성화 이벤트 - 모든 클라이언트에 즉시 적용
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Activating new version');
+  console.log('🔄 ZAVIS PWA v3.0 활성화 중...');
+  
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      // 모든 클라이언트에게 즉시 적용
-      return self.clients.claim();
+    self.clients.claim().then(() => {
+      console.log('✅ ZAVIS PWA v3.0 활성화 완료!');
     })
   );
 });
 
-// fetch 이벤트 - 네트워크 우선 전략으로 변경 (개선된 오류 처리)
+// Fetch 이벤트 - 심플한 캐시 전략
 self.addEventListener('fetch', event => {
-  // 캐시할 수 없는 요청들을 필터링
   const request = event.request;
   
-  // POST, PUT, DELETE 등의 요청이나 외부 API 호출은 캐시하지 않음
-  if (request.method !== 'GET' || 
-      request.url.includes('supabase.co') ||
-      request.url.includes('api.') ||
-      request.url.startsWith('chrome-extension://') ||
-      request.url.startsWith('data:')) {
-    // 네트워크 요청만 처리하고 캐시하지 않음
-    event.respondWith(
-      fetch(request).catch(() => {
-        // 네트워크 실패시 기본 응답 반환
-        return new Response('Network Error', { status: 408 });
-      })
-    );
+  // GET 요청만 캐시 처리
+  if (request.method !== 'GET') {
     return;
   }
   
-  // GET 요청만 캐시 처리
+  // 외부 리소스는 네트워크에서만 처리
+  if (request.url.startsWith('chrome-extension://') ||
+      request.url.startsWith('data:') ||
+      request.url.includes('chatgpt.com') ||
+      request.url.includes('cdn.jsdelivr.net')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
+  // 캐시 우선, 없으면 네트워크
   event.respondWith(
-    fetch(request)
-      .then(response => {
-        // 네트워크 요청 성공시 캐시 업데이트 (GET 요청이고 성공적인 응답만)
-        if (response.status === 200 && request.method === 'GET') {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              // 캐시 저장 중 오류가 발생해도 무시
-              cache.put(request, responseClone).catch(err => {
-                console.log('Cache put error (ignored):', err);
-              });
-            })
-            .catch(err => {
-              console.log('Cache open error (ignored):', err);
-            });
+    caches.match(request).then(response => {
+      if (response) {
+        return response; // 캐시에서 반환
+      }
+      
+      // 네트워크에서 가져와서 캐시에 저장
+      return fetch(request).then(fetchResponse => {
+        if (fetchResponse.status === 200) {
+          const responseClone = fetchResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, responseClone);
+          });
         }
-        return response;
-      })
-      .catch(() => {
-        // 네트워크 실패시에만 캐시에서 반환
-        return caches.match(request);
-      })
+        return fetchResponse;
+      });
+    })
   );
-}); 
+});

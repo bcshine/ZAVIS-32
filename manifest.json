@@ -1,12 +1,13 @@
 {
-  "name": "ZAVIS - 사장님의 수퍼앱",
-  "short_name": "ZAVIS",
-  "description": "통찰적인 조언자, 의사결정 나침반",
-  "start_url": ".",
+  "name": "ZAVIS-32 - 사장님의 수퍼앱",
+  "short_name": "ZAVIS-32",
+  "description": "통찰적인 조언자, 의사결정 나침반 (v3.0)",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f5ecd7",
   "theme_color": "#f5ecd7",
   "orientation": "portrait",
+  "version": "3.0",
   "icons": [
     {
       "src": "mp1.png",
