@@ -7,38 +7,39 @@ const urlsToCache = [
   './manifest.json'
 ];
 
-// 설치 이벤트 - 기존 캐시 모두 삭제하고 새로 시작
+// 설치 이벤트 - 안정적인 PWA 설치
 self.addEventListener('install', event => {
   console.log('🚀 ZAVIS PWA v3.0 설치 중...');
   
   event.waitUntil(
-    // 1. 모든 기존 캐시 완전 삭제
-    caches.keys().then(cacheNames => {
-      console.log('🗑️ 기존 캐시 모두 삭제:', cacheNames);
-      return Promise.all(
-        cacheNames.map(cacheName => caches.delete(cacheName))
-      );
-    }).then(() => {
-      // 2. 새 캐시 생성
-      console.log('📦 새 캐시 생성:', CACHE_NAME);
-      return caches.open(CACHE_NAME);
-    }).then(cache => {
-      console.log('💾 파일 캐시 중...');
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('💾 필수 파일 캐시 중...');
       return cache.addAll(urlsToCache);
     }).then(() => {
       console.log('✅ ZAVIS PWA v3.0 설치 완료!');
-      return self.skipWaiting(); // 즉시 활성화
+      // skipWaiting 제거 - PWA 설치 안정성 향상
     })
   );
 });
 
-// 활성화 이벤트 - 모든 클라이언트에 즉시 적용
+// 활성화 이벤트 - 기존 캐시 정리 후 활성화
 self.addEventListener('activate', event => {
   console.log('🔄 ZAVIS PWA v3.0 활성화 중...');
   
   event.waitUntil(
-    self.clients.claim().then(() => {
+    // 기존 캐시 정리
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('🗑️ 기존 캐시 삭제:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
       console.log('✅ ZAVIS PWA v3.0 활성화 완료!');
+      return self.clients.claim();
     })
   );
 });

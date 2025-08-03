@@ -178,31 +178,17 @@
   </div>
 
   <script>
-    // ZAVIS PWA v3.0 서비스 워커 등록
+    // ZAVIS PWA v3.0 서비스 워커 등록 (설치 최적화)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.0', { 
-        scope: './',
-        updateViaCache: 'none' // 캐시 무시하고 항상 새 SW 확인
-      })
-        .then(registration => {
-          console.log('🚀 ZAVIS PWA v3.0 Service Worker 등록 완료!');
-          
-          // 새 버전이 있으면 즉시 업데이트
-          registration.addEventListener('updatefound', () => {
-            console.log('🔄 새로운 Service Worker 감지!');
-            const newWorker = registration.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('✨ 새 버전 준비 완료! 페이지를 새로고침하세요.');
-                // 자동 새로고침 (선택사항)
-                window.location.reload();
-              }
-            });
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js?v=3.0')
+          .then(registration => {
+            console.log('🚀 ZAVIS PWA v3.0 Service Worker 등록 완료!');
+          })
+          .catch(error => {
+            console.log('❌ Service Worker 등록 실패:', error);
           });
-        })
-        .catch(error => {
-          console.log('❌ Service Worker 등록 실패:', error);
-        });
+      });
     }
     
     // ChatGPT 링크
